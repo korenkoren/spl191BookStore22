@@ -85,4 +85,8 @@ public class Customer {
 	public List<OrderSchedule> getOrdersList() {
 		return ordersList;
 	}
+
+	public void chargeCreditCard(int amount) {
+		creditCard.setAmount(creditCard.getAmount() - amount);
+	}
 }

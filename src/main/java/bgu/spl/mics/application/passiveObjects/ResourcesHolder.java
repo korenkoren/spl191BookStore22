@@ -2,6 +2,11 @@ package bgu.spl.mics.application.passiveObjects;
 
 import bgu.spl.mics.Future;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 /**
  * Passive object representing the resource manager.
  * You must not alter any of the given public methods of this class.
@@ -12,14 +17,23 @@ import bgu.spl.mics.Future;
  * You can add ONLY private methods and fields to this class.
  */
 public class ResourcesHolder {
-	
+	private static ResourcesHolder instance = new ResourcesHolder();
+	private Queue<DeliveryVehicle> vehicles;
+	private Queue<Future<DeliveryVehicle>> futures;
 	/**
      * Retrieves the single instance of this class.
      */
-	public static ResourcesHolder getInstance() {
-		//TODO: Implement this
-		return null;
+
+	public ResourcesHolder() {
+		vehicles = new ConcurrentLinkedQueue<>();
+		futures = new ConcurrentLinkedQueue<>();
 	}
+
+	public static ResourcesHolder getInstance() {
+		return instance;
+	}
+
+
 	
 	/**
      * Tries to acquire a vehicle and gives a future object which will
@@ -29,8 +43,14 @@ public class ResourcesHolder {
      * 			{@link DeliveryVehicle} when completed.   
      */
 	public Future<DeliveryVehicle> acquireVehicle() {
-		//TODO: Implement this
-		return null;
+		Future<DeliveryVehicle> future = new Future<>();
+		DeliveryVehicle vehicle = vehicles.poll();
+		if(vehicle != null)
+			future.resolve(vehicle);
+		else
+			futures.add(future);
+
+		return future;
 	}
 	
 	/**
@@ -40,7 +60,10 @@ public class ResourcesHolder {
      * @param vehicle	{@link DeliveryVehicle} to be released.
      */
 	public void releaseVehicle(DeliveryVehicle vehicle) {
-		//TODO: Implement this
+		if(futures.isEmpty())
+			vehicles.add(vehicle);
+		else
+			futures.remove().resolve(vehicle);
 	}
 	
 	/**
@@ -49,7 +72,7 @@ public class ResourcesHolder {
      * @param vehicles	Array of {@link DeliveryVehicle} instances to store.
      */
 	public void load(DeliveryVehicle[] vehicles) {
-		//TODO: Implement this
+		this.vehicles.addAll(Arrays.asList(vehicles));
 	}
 
 }

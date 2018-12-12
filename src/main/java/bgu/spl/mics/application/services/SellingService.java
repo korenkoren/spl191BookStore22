@@ -3,6 +3,8 @@ package bgu.spl.mics.application.services;
 import bgu.spl.mics.*;
 import bgu.spl.mics.application.messages.BookOrderEvent;
 import bgu.spl.mics.application.messages.CheckInventoryEvent;
+import bgu.spl.mics.application.messages.DeliveryEvent;
+import bgu.spl.mics.application.messages.TickBroadcast;
 import bgu.spl.mics.application.passiveObjects.BookInventoryInfo;
 import bgu.spl.mics.application.passiveObjects.Customer;
 import bgu.spl.mics.application.passiveObjects.MoneyRegister;
@@ -21,21 +23,34 @@ import bgu.spl.mics.application.passiveObjects.OrderReceipt;
 public class SellingService extends MicroService{
 
 	private MoneyRegister m;
+	private int currentTick;
 
 	public SellingService() {
 		super("SellingService");
 		m=MoneyRegister.getInstance();
+		currentTick = -1;
 	}
 
-	@Override
+	@Override @SuppressWarnings("unchecked")
 	protected void initialize() {
+		subscribeBroadcast(TickBroadcast.class, (TickBroadcast t) -> this.currentTick = t.getCurrentTick());
+
 		subscribeEvent(BookOrderEvent.class, (BookOrderEvent b) -> {
+			int processTick = currentTick;
 			CheckInventoryEvent event = new CheckInventoryEvent(b.getBookTitle(), b.getCustomer());
 			Future<BookInventoryInfo> future = sendEvent(event);
-			future.get();
+			if(future.get() != null) {
+				BookInventoryInfo book = future.get();
+				Future<Boolean> deliveryFuture = sendEvent(new DeliveryEvent(b.getCustomer().getAddress(), b.getCustomer().getDistance()));
+				deliveryFuture.get();
+				if(deliveryFuture.get()) {
+					m.file(new OrderReceipt(this.getName(), b.getCustomer().getId(), b.getBookTitle(), book.getPrice(), currentTick, b.getTick(), processTick));
+				}
 
-
+			}
 		});
 	}
 
 }
+
+

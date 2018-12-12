@@ -31,7 +31,7 @@ public class APIService extends MicroService {
 		subscribeBroadcast(TickBroadcast.class, (TickBroadcast t) -> {
 			for (int i=0; i < customer.getOrdersList().size(); i++) {
 				if(customer.getOrdersList().get(i).getTick() == t.getCurrentTick()) {
-					BookOrderEvent event = new BookOrderEvent(customer, customer.getOrdersList().get(i).getBookTitle());
+					BookOrderEvent event = new BookOrderEvent(customer, customer.getOrdersList().get(i).getTick(), customer.getOrdersList().get(i).getBookTitle());
 					Future<OrderReceipt> future = sendEvent(event);
 				}
 			}

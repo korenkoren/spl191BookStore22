@@ -1,3 +1,5 @@
+import bgu.spl.mics.application.passiveObjects.BookInventoryInfo;
+import bgu.spl.mics.application.passiveObjects.Inventory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

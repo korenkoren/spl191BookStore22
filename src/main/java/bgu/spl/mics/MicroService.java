@@ -132,7 +132,7 @@ public abstract class MicroService implements Runnable {
     /**
      * this method is called once when the event loop starts.
      */
-    protected abstract void initialize();
+    protected abstract void initialize() throws InterruptedException;
 
     /**
      * Signals the event loop that it must terminate after handling the current
@@ -154,21 +154,26 @@ public abstract class MicroService implements Runnable {
      * The entry point of the micro-service. TODO: you must complete this code
      * otherwise you will end up in an infinite loop.
      */
-    @Override
+    @Override @SuppressWarnings("unchecked")
     public final void run() {
         Message message=null;
         MessageBus m=MessageBusImpl.getInstance();
-        initialize();
+        try {
+            initialize();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         while (!terminated) {
             try {
                  message = m.awaitMessage(this);
+                Callback c=hMapCallBackMessages.get(message.getClass());
+                c.call(message);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-                Callback c=hMapCallBackMessages.get(message.getClass());
-                c.call(message);
 
         }
+        m.unregister(this);
     }
 
 }

@@ -24,7 +24,6 @@ public class MessageBusImpl implements MessageBus {
 	private MessageBusImpl(){
 		instance=new MessageBusImpl();
 		microServicesList=new LinkedList<MicroService>();
-		placeInLIst=0;
 		hMapAssign = new ConcurrentHashMap<MicroService,BlockingQueue<Message>>();
 		hMapSubscribeEvent=new ConcurrentHashMap<Class<? extends Event>,List<MicroService>>();
 		hMapSubscribeBroadcast=new ConcurrentHashMap<Class<? extends Broadcast>,List<MicroService>>();
@@ -47,11 +46,11 @@ public class MessageBusImpl implements MessageBus {
 		hMapSubscribeBroadcast.put(type,microServicesList);
 	}
 
-	@Override
+	@Override @SuppressWarnings("unchecked")
 	public <T> void complete(Event<T> e, T result) {
-		Future<T> f=sendEvent(e);
-		f.resolve(result);
-		hMapEventFuture.put(e,f);
+		hMapEventFuture.get(e).resolve(result);
+		hMapEventFuture.remove(e);
+
 	}
 
 	@Override
@@ -66,7 +65,7 @@ public class MessageBusImpl implements MessageBus {
 		this.notifyAll();
 	}
 
-	@Override
+	@Override @SuppressWarnings("unchecked")
 	public synchronized  <T> Future<T> sendEvent(Event<T> e) {
 		Future<T> f;
 		BlockingQueue<Message> q;
@@ -76,7 +75,6 @@ public class MessageBusImpl implements MessageBus {
 		q=hMapAssign.get(l.get(placeInLIst%l.size()));
 		q.add(e);
 		hMapAssign.put(l.get(placeInLIst%l.size()),q);
-		placeInLIst++;
 		f=hMapEventFuture.get(e);//todo warning
 		this.notifyAll();
 		return f;
