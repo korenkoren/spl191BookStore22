@@ -102,7 +102,6 @@ public abstract class MicroService implements Runnable {
      */
     protected final <T> Future<T> sendEvent(Event<T> e) {
         return MessageBusImpl.getInstance().sendEvent(e);
-
     }
 
     /**
@@ -158,6 +157,7 @@ public abstract class MicroService implements Runnable {
     public final void run() {
         Message message=null;
         MessageBus m=MessageBusImpl.getInstance();
+        m.register(this);
         try {
             initialize();
         } catch (InterruptedException e) {
@@ -171,7 +171,6 @@ public abstract class MicroService implements Runnable {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
         }
         m.unregister(this);
     }

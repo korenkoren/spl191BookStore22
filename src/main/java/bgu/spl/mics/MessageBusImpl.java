@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * The {@link MessageBusImpl class is the implementation of the MessageBus interface.
@@ -13,21 +15,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * Only private fields and methods can be added to this class.
  */
 public class MessageBusImpl implements MessageBus {
-	private static MessageBus instance;
-	private List <MicroService>microServicesList;
-	private int placeInLIst;
+	private static MessageBus instance = new MessageBusImpl();
 	private ConcurrentHashMap<MicroService,BlockingQueue<Message>> hMapAssign;
-	private ConcurrentHashMap<Class<? extends Event>,List<MicroService>> hMapSubscribeEvent;
-	private ConcurrentHashMap<Class<? extends Broadcast>,List<MicroService>> hMapSubscribeBroadcast;
+	private ConcurrentHashMap<Class<? extends Event>,Queue<MicroService>> hMapSubscribeEvent;
+	private ConcurrentHashMap<Class<? extends Broadcast>,Queue<MicroService>> hMapSubscribeBroadcast;
+	private ConcurrentHashMap<MicroService, Queue<Class<? extends Message>>> hMapSubscribe;
 	private ConcurrentHashMap<Event,Future> hMapEventFuture;
 
 	private MessageBusImpl(){
-		instance=new MessageBusImpl();
-		microServicesList=new LinkedList<MicroService>();
-		hMapAssign = new ConcurrentHashMap<MicroService,BlockingQueue<Message>>();
-		hMapSubscribeEvent=new ConcurrentHashMap<Class<? extends Event>,List<MicroService>>();
-		hMapSubscribeBroadcast=new ConcurrentHashMap<Class<? extends Broadcast>,List<MicroService>>();
-		hMapEventFuture=new ConcurrentHashMap<Event,Future>();
+		hMapAssign = new ConcurrentHashMap<>();
+		hMapSubscribeEvent=new ConcurrentHashMap<>();
+		hMapSubscribeBroadcast=new ConcurrentHashMap<>();
+		hMapEventFuture=new ConcurrentHashMap<>();
+		hMapSubscribe = new ConcurrentHashMap<>();
 	}
 
 	public static MessageBus getInstance() {
@@ -36,14 +36,24 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
-		microServicesList.add(m);
-		hMapSubscribeEvent.put(type,microServicesList);
+		hMapSubscribeEvent.putIfAbsent(type, new ConcurrentLinkedQueue<>());
+
+		if(!hMapSubscribeEvent.get(type).contains(m))
+			hMapSubscribeEvent.get(type).add(m);
+
+		if(!hMapSubscribe.get(m).contains(type))
+			hMapSubscribe.get(m).add(type);
 	}
 
 	@Override
 	public void subscribeBroadcast(Class<? extends Broadcast> type, MicroService m) {
-		microServicesList.add(m);
-		hMapSubscribeBroadcast.put(type,microServicesList);
+		hMapSubscribeBroadcast.putIfAbsent(type, new ConcurrentLinkedQueue<>());
+
+		if(!hMapSubscribeBroadcast.get(type).contains(m))
+			hMapSubscribeBroadcast.get(type).add(m);
+
+		if(!hMapSubscribe.get(m).contains(type))
+			hMapSubscribe.get(m).add(type);
 	}
 
 	@Override @SuppressWarnings("unchecked")
@@ -54,53 +64,70 @@ public class MessageBusImpl implements MessageBus {
 	}
 
 	@Override
-	public synchronized void sendBroadcast(Broadcast b) {
-		BlockingQueue<Message> q;
-		List<MicroService> l=hMapSubscribeBroadcast.get(b.getClass());
-		for (int i=0; i < l.size(); i++) {
-			q=hMapAssign.get(l.get(i));
-			q.add(b);
-			hMapAssign.put(l.get(i),q);
+	public void sendBroadcast(Broadcast b) {
+		Queue<MicroService> queue = hMapSubscribeBroadcast.get(b.getClass());
+		if(queue != null) {
+			for(MicroService m : queue) {
+				Queue<Message> messageQueue =hMapAssign.get(m);
+				if(messageQueue != null)
+					messageQueue.add(b);
+			}
 		}
-		this.notifyAll();
 	}
 
 	@Override @SuppressWarnings("unchecked")
-	public synchronized  <T> Future<T> sendEvent(Event<T> e) {
-		Future<T> f;
-		BlockingQueue<Message> q;
-		List<MicroService> l = hMapSubscribeEvent.get(e.getClass());
-		if(l.get(placeInLIst%l.size())==null)
-			return null;
-		q=hMapAssign.get(l.get(placeInLIst%l.size()));
-		q.add(e);
-		hMapAssign.put(l.get(placeInLIst%l.size()),q);
-		f=hMapEventFuture.get(e);//todo warning
-		this.notifyAll();
+	public <T> Future<T> sendEvent(Event<T> e) {
+		MicroService m=null;
+		Future<T> f=null;
+		Queue<MicroService> queue=hMapSubscribeEvent.get(e.getClass());
+		if (queue != null) {
+			synchronized (e.getClass()) {
+				m=hMapSubscribeEvent.get(e.getClass()).poll();
+				if (m != null)
+					queue.add(m);
+			}
+			if (m != null) {
+				Queue<Message> messages = hMapAssign.get(m);
+				synchronized (m) {
+					f=new Future<>();
+					hMapEventFuture.put(e, f);
+					hMapSubscribeEvent.get(e.getClass()).add(m);
+					messages.add(e);
+				}
+			}
+		}
 		return f;
 	}
 
-	@Override
-	public void register(MicroService m) {//todo how to use this method
-		Queue q;
-		q=hMapAssign.get(m);
-	}
-
-	@Override
-	public void unregister(MicroService m) {
-		hMapAssign.get(m).clear();
-		hMapAssign.remove(m);
-	}
-
-	@Override
-	public synchronized Message awaitMessage(MicroService m) throws InterruptedException {
-		while(hMapAssign.get(m).poll()==null) {
-			try {
-				this.wait();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+		@Override
+		public void register(MicroService m) {
+			hMapAssign.putIfAbsent(m, new LinkedBlockingQueue<>());
+			hMapSubscribe.putIfAbsent(m, new ConcurrentLinkedQueue<>());
 		}
-			return hMapAssign.get(m).poll();
+
+		@Override @SuppressWarnings("unchecked")
+		public void unregister(MicroService m) {
+			Queue<Message> messageQueue;
+			synchronized (m) {
+				messageQueue=hMapAssign.remove(m);
+			}
+			for(Class<? extends Message> message : hMapSubscribe.get(m)) {
+				if(message.isInstance(Event.class))
+					hMapSubscribeEvent.get(message).remove(m);
+				else if(message.isInstance(Broadcast.class))
+					hMapSubscribeBroadcast.get(message).remove(m);
+//			boolean removed =
+//			while(!removed)
+//				removed = hMapSubscribeEvent.get(message).remove(m);
+
+			}
+			hMapSubscribe.remove(m);
+			for(Message e : messageQueue)
+				complete((Event)e, null);
+		}
+
+		@Override
+		public Message awaitMessage(MicroService m) throws InterruptedException {
+			return hMapAssign.get(m).take();
+		}
 	}
-}

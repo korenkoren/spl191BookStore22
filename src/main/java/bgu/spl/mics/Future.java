@@ -46,7 +46,7 @@ public class Future<T> {
 	/**
      * Resolves the result of this Future object.
      */
-	public void resolve (T result) {
+	public synchronized void resolve (T result) {
 		this.result=result;
 		isDone=true;
 		this.notifyAll();
@@ -70,17 +70,15 @@ public class Future<T> {
      * 	       wait for {@code timeout} TimeUnits {@code unit}. If time has
      *         elapsed, return null.
      */
-	public T get(long timeout, TimeUnit unit) {
-			if (isDone())
-				return result;
-			else {
+	public synchronized T get(long timeout, TimeUnit unit) {
+			if (!isDone()) {
 				try {
-					unit.wait(timeout);
+					unit.timedWait(this, timeout);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
-			return null;
+			return result;
 
 	}
 
