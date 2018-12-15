@@ -17,7 +17,7 @@ import java.util.concurrent.CountDownLatch;
  * It informs the store about desired purchases using {@link BookOrderEvent}.
  * This class may not hold references for objects which it is not responsible for:
  * {@link ResourcesHolder}, {@link MoneyRegister}, {@link Inventory}.
- * 
+ *
  * You can add private fields and public methods to this class.
  * You MAY change constructor signatures and even add new public constructors.
  */
@@ -39,17 +39,10 @@ public class APIService extends MicroService {
 				if(customer.getOrdersList().get(i).getTick() == t.getCurrentTick()) {
 					BookOrderEvent event = new BookOrderEvent(customer, customer.getOrdersList().get(i).getTick(), customer.getOrdersList().get(i).getBookTitle());
 					Future<OrderReceipt> future = sendEvent(event);
-					try {
-						if (future.get() != null) {
-							System.out.println(customer.getName() + " ordered " + future.get().getBookTitle());
-							sendEvent(new DeliveryEvent(customer.getAddress(), customer.getDistance()));
-						}
-					}
-					catch(Exception e) {
-						if (future.get() != null) {
-							System.out.println(customer.getName() + " ordered " + future.get().getBookTitle());
-							sendEvent(new DeliveryEvent(customer.getAddress(), customer.getDistance()));
-						}
+					if (future.get() != null) {
+						customer.addReceipt(future.get());
+						System.out.println(customer.getName() + " ordered " + future.get().getBookTitle());
+						sendEvent(new DeliveryEvent(customer.getAddress(), customer.getDistance()));
 					}
 				}
 			}

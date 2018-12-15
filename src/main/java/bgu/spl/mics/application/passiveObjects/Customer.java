@@ -6,6 +6,7 @@ import com.google.gson.annotations.SerializedName;
 import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Passive data-object representing a customer of the store.
@@ -22,7 +23,7 @@ public class Customer implements Serializable {
 	private String address;
 	private int distance;
 	private CreditCard creditCard;
-	List<OrderReceipt> orderReceipts;
+	private List<OrderReceipt> orderReceipts;
 
 	public Customer(List<OrderSchedule> ordersList, String name, int id, String address, int distance, CreditCard creditCard) {
 		this.ordersList=ordersList;
@@ -31,7 +32,7 @@ public class Customer implements Serializable {
 		this.address=address;
 		this.distance=distance;
 		this.creditCard=creditCard;
-		orderReceipts = new LinkedList<>();
+		orderReceipts = new CopyOnWriteArrayList<>();
 	}
 
 	/**
@@ -94,5 +95,12 @@ public class Customer implements Serializable {
 
 	public void chargeCreditCard(int amount) {
 		creditCard.setAmount(creditCard.getAmount() - amount);
+	}
+
+	public void addReceipt(OrderReceipt orderReceipt) {
+		if(orderReceipts == null)
+			orderReceipts = new CopyOnWriteArrayList<>();
+		if(orderReceipt != null)
+			orderReceipts.add(orderReceipt);
 	}
 }

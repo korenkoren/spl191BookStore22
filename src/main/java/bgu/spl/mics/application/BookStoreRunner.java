@@ -7,8 +7,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class BookStoreRunner {
     public static void main(String[] args) {
@@ -34,13 +32,13 @@ public class BookStoreRunner {
             createSerializedObject((Serializable) customerMap, args[1]);
             Inventory.getInstance().printInventoryToFile(args[2]);
             MoneyRegister.getInstance().printOrderReceipts(args[3]);
-            createSerializedObject((Serializable) MoneyRegister.getInstance(), args[4]);
+            createSerializedObject(MoneyRegister.getInstance(), args[4]);
             /*System.out.println(testSeriliazedObject(customerMap, args[1]));
             System.out.println(testSeriliazedObject(MoneyRegister.getInstance(), args[4]));*/
-//            printSerializedObject(args[1]);
-//            printSerializedObject(args[2]);
-//            printSerializedObject(args[3]);
-//            printSerializedObject(args[4]);
+            printSerializedObject(args[1]);
+            printSerializedObject(args[2]);
+            printSerializedObject(args[3]);
+            printSerializedObject(args[4]);
 
 
 
