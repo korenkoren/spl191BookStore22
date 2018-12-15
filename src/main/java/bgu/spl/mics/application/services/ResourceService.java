@@ -3,9 +3,12 @@ package bgu.spl.mics.application.services;
 import bgu.spl.mics.Future;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.messages.ReleaseVehicleEvent;
+import bgu.spl.mics.application.messages.TerminateBroadcast;
 import bgu.spl.mics.application.messages.VehicleRequestEvent;
 import bgu.spl.mics.application.passiveObjects.DeliveryVehicle;
 import bgu.spl.mics.application.passiveObjects.ResourcesHolder;
+
+import java.util.concurrent.CountDownLatch;
 
 /**
  * ResourceService is in charge of the store resources - the delivery vehicles.
@@ -18,13 +21,15 @@ import bgu.spl.mics.application.passiveObjects.ResourcesHolder;
  */
 public class ResourceService extends MicroService{
 	private ResourcesHolder resourcesHolder = ResourcesHolder.getInstance();
-	public ResourceService() {
+	private CountDownLatch countDownLatch;
+	public ResourceService(CountDownLatch countDownLatch) {
 		super("Change_This_Name");
-		// TODO Implement this
+		this.countDownLatch = countDownLatch;
 	}
 
-	@Override
+	@Override @SuppressWarnings("unchecked")
 	protected void initialize() {
+		subscribeBroadcast(TerminateBroadcast.class, (TerminateBroadcast t) -> terminate());
 		subscribeEvent(VehicleRequestEvent.class, (VehicleRequestEvent v) -> {
 			Future<DeliveryVehicle> future = resourcesHolder.acquireVehicle();
 			complete(v, future);
@@ -34,7 +39,7 @@ public class ResourceService extends MicroService{
 		subscribeEvent(ReleaseVehicleEvent.class, (ReleaseVehicleEvent r) -> {
 			resourcesHolder.releaseVehicle(r.getVehicle());
 		});
-		
+		countDownLatch.countDown();
 	}
 
 }

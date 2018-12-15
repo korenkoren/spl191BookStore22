@@ -37,9 +37,7 @@ public class MessageBusImpl implements MessageBus {
 	@Override
 	public <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
 		hMapSubscribeEvent.putIfAbsent(type, new ConcurrentLinkedQueue<>());
-
-		if(!hMapSubscribeEvent.get(type).contains(m))
-			hMapSubscribeEvent.get(type).add(m);
+		hMapSubscribeEvent.get(type).add(m);
 
 		if(!hMapSubscribe.get(m).contains(type))
 			hMapSubscribe.get(m).add(type);
@@ -48,9 +46,7 @@ public class MessageBusImpl implements MessageBus {
 	@Override
 	public void subscribeBroadcast(Class<? extends Broadcast> type, MicroService m) {
 		hMapSubscribeBroadcast.putIfAbsent(type, new ConcurrentLinkedQueue<>());
-
-		if(!hMapSubscribeBroadcast.get(type).contains(m))
-			hMapSubscribeBroadcast.get(type).add(m);
+		hMapSubscribeBroadcast.get(type).add(m);
 
 		if(!hMapSubscribe.get(m).contains(type))
 			hMapSubscribe.get(m).add(type);
@@ -58,9 +54,11 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override @SuppressWarnings("unchecked")
 	public <T> void complete(Event<T> e, T result) {
-		hMapEventFuture.get(e).resolve(result);
-		hMapEventFuture.remove(e);
-
+		Future future = hMapEventFuture.get(e);
+		if(future != null) {
+			hMapEventFuture.get(e).resolve(result);
+			hMapEventFuture.remove(e);
+		}
 	}
 
 	@Override
@@ -77,7 +75,7 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override @SuppressWarnings("unchecked")
 	public <T> Future<T> sendEvent(Event<T> e) {
-		MicroService m=null;
+		MicroService m;
 		Future<T> f=null;
 		Queue<MicroService> queue=hMapSubscribeEvent.get(e.getClass());
 		if (queue != null) {
@@ -87,47 +85,49 @@ public class MessageBusImpl implements MessageBus {
 					queue.add(m);
 			}
 			if (m != null) {
-				Queue<Message> messages = hMapAssign.get(m);
 				synchronized (m) {
-					f=new Future<>();
-					hMapEventFuture.put(e, f);
-					hMapSubscribeEvent.get(e.getClass()).add(m);
-					messages.add(e);
+					Queue<Message> messages = hMapAssign.get(m);
+					if(messages != null) {
+						f = new Future<>();
+						hMapEventFuture.put(e, f);
+						messages.add(e);
+					}
 				}
 			}
 		}
 		return f;
 	}
 
-		@Override
-		public void register(MicroService m) {
-			hMapAssign.putIfAbsent(m, new LinkedBlockingQueue<>());
-			hMapSubscribe.putIfAbsent(m, new ConcurrentLinkedQueue<>());
-		}
+	@Override
+	public void register(MicroService m) {
+		hMapAssign.putIfAbsent(m, new LinkedBlockingQueue<>());
+		hMapSubscribe.putIfAbsent(m, new ConcurrentLinkedQueue<>());
+	}
 
-		@Override @SuppressWarnings("unchecked")
-		public void unregister(MicroService m) {
-			Queue<Message> messageQueue;
-			synchronized (m) {
-				messageQueue=hMapAssign.remove(m);
+	@Override @SuppressWarnings("unchecked")
+	public void unregister(MicroService m) {
+		Queue<Message> messageQueue;
+		synchronized (m) {
+			messageQueue=hMapAssign.remove(m);
+		}
+		for(Class<? extends Message> message : hMapSubscribe.get(m)) {
+			if(Event.class.isAssignableFrom(message)) {
+				hMapSubscribeEvent.get(message).remove(m);
 			}
-			for(Class<? extends Message> message : hMapSubscribe.get(m)) {
-				if(message.isInstance(Event.class))
-					hMapSubscribeEvent.get(message).remove(m);
-				else if(message.isInstance(Broadcast.class))
-					hMapSubscribeBroadcast.get(message).remove(m);
+			else if(Broadcast.class.isAssignableFrom(message))
+				hMapSubscribeBroadcast.get(message).remove(m);
 //			boolean removed =
 //			while(!removed)
 //				removed = hMapSubscribeEvent.get(message).remove(m);
 
-			}
-			hMapSubscribe.remove(m);
-			for(Message e : messageQueue)
-				complete((Event)e, null);
 		}
-
-		@Override
-		public Message awaitMessage(MicroService m) throws InterruptedException {
-			return hMapAssign.get(m).take();
-		}
+		hMapSubscribe.remove(m);
+		for(Message e : messageQueue)
+			complete((Event)e, null);
 	}
+
+	@Override
+	public Message awaitMessage(MicroService m) throws InterruptedException {
+		return hMapAssign.get(m).take();
+	}
+}

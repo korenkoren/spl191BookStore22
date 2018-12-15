@@ -1,5 +1,9 @@
 package bgu.spl.mics.application.passiveObjects;
 
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
+
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -9,7 +13,9 @@ import java.util.List;
  * <p>
  * You may add fields and methods to this class as you see fit (including public methods).
  */
-public class Customer {
+public class Customer implements Serializable {
+	@SerializedName("orderSchedule")
+	@Expose
 	private List<OrderSchedule> ordersList;
 	private String name;
 	private int id;

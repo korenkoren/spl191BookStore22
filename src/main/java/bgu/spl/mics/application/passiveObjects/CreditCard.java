@@ -1,6 +1,8 @@
 package bgu.spl.mics.application.passiveObjects;
 
-public class CreditCard {
+import java.io.Serializable;
+
+public class CreditCard implements Serializable {
     private int number;
     private int amount;
 

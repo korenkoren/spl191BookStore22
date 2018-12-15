@@ -28,9 +28,10 @@ public class TimeService extends MicroService{
 
 	@Override
 	protected void initialize() {
-		while(currentTick < duration) {
+		while(currentTick < duration - 1) {
 			currentTick = currentTick + 1;
 			sendBroadcast(new TickBroadcast(currentTick));
+			System.out.println("Tick number "+currentTick);
 			try {
 				Thread.sleep(speed);
 			}

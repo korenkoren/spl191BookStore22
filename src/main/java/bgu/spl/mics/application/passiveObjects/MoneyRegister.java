@@ -1,7 +1,11 @@
 package bgu.spl.mics.application.passiveObjects;
 
+import bgu.spl.mics.application.BookStoreRunner;
+
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Passive object representing the store finance management. 
@@ -12,7 +16,7 @@ import java.util.List;
  * <p>
  * You can add ONLY private fields and methods to this class as you see fit.
  */
-public class MoneyRegister {
+public class MoneyRegister implements Serializable{
 	private static MoneyRegister instance=new MoneyRegister();
 	private List<OrderReceipt> orderReceipts;
 
@@ -61,6 +65,14 @@ public class MoneyRegister {
      * This method is called by the main method in order to generate the output.. 
      */
 	public void printOrderReceipts(String filename) {
-		//TODO: Implement this
+		List<OrderReceipt> orderReceipts = new LinkedList<>();
+		synchronized (orderReceipts) {
+			orderReceipts.addAll(orderReceipts);
+		}
+		BookStoreRunner.createSerializedObject((Serializable)orderReceipts,filename);
+	}
+
+	public List<OrderReceipt> getOrderReceipts() {
+		return orderReceipts;
 	}
 }
