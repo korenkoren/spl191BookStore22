@@ -44,9 +44,10 @@ public class ResourcesHolder {
      */
 	public Future<DeliveryVehicle> acquireVehicle() {
 		Future<DeliveryVehicle> future = new Future<>();
-		DeliveryVehicle vehicle = vehicles.poll();
-		if(vehicle != null)
+		if(!vehicles.isEmpty()) {
+			DeliveryVehicle vehicle = vehicles.poll();
 			future.resolve(vehicle);
+		}
 		else
 			futures.add(future);
 
@@ -63,7 +64,7 @@ public class ResourcesHolder {
 		if(futures.isEmpty())
 			vehicles.add(vehicle);
 		else
-			futures.remove().resolve(vehicle);
+			futures.poll().resolve(vehicle);
 	}
 	
 	/**
