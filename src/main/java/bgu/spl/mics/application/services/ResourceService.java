@@ -8,6 +8,7 @@ import bgu.spl.mics.application.messages.VehicleRequestEvent;
 import bgu.spl.mics.application.passiveObjects.DeliveryVehicle;
 import bgu.spl.mics.application.passiveObjects.ResourcesHolder;
 
+import java.util.LinkedList;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -22,6 +23,8 @@ import java.util.concurrent.CountDownLatch;
 public class ResourceService extends MicroService{
 	private ResourcesHolder resourcesHolder = ResourcesHolder.getInstance();
 	private CountDownLatch countDownLatch;
+	private LinkedList<Future<DeliveryVehicle>> futuresToResolve=new LinkedList<>();
+
 	public ResourceService(CountDownLatch countDownLatch) {
 		super("Change_This_Name");
 		this.countDownLatch = countDownLatch;
@@ -29,15 +32,22 @@ public class ResourceService extends MicroService{
 
 	@Override @SuppressWarnings("unchecked")
 	protected void initialize() {
-		subscribeBroadcast(TerminateBroadcast.class, (TerminateBroadcast t) -> terminate());
+		subscribeBroadcast(TerminateBroadcast.class, (TerminateBroadcast t) -> {
+			for (Future<DeliveryVehicle> futureToResolve : futuresToResolve)
+				futureToResolve.resolve(null);
+			terminate();
+		});
 		subscribeEvent(VehicleRequestEvent.class, (VehicleRequestEvent v) -> {
 			Future<DeliveryVehicle> future = resourcesHolder.acquireVehicle();
+			futuresToResolve.add(future);
 			complete(v, future);
 
 		});
 
 		subscribeEvent(ReleaseVehicleEvent.class, (ReleaseVehicleEvent r) -> {
-			resourcesHolder.releaseVehicle(r.getVehicle());
+			resourcesHolder.releaseVehicle(r.getDeliveryVehicleFuture().get());
+			complete(r, "released");
+			futuresToResolve.remove(r.getDeliveryVehicleFuture());
 		});
 		countDownLatch.countDown();
 	}

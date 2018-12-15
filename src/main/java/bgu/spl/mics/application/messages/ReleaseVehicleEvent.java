@@ -1,15 +1,17 @@
 package bgu.spl.mics.application.messages;
 
 import bgu.spl.mics.Event;
+import bgu.spl.mics.Future;
 import bgu.spl.mics.application.passiveObjects.DeliveryVehicle;
 
 public class ReleaseVehicleEvent implements Event {
-    private DeliveryVehicle vehicle;
-    public ReleaseVehicleEvent(DeliveryVehicle vehicle) {
-        this.vehicle = vehicle;
+    private Future<DeliveryVehicle> deliveryVehicleFuture;
+
+    public ReleaseVehicleEvent(Future<DeliveryVehicle> deliveryVehicleFuture){
+        this.deliveryVehicleFuture = deliveryVehicleFuture;
     }
 
-    public DeliveryVehicle getVehicle() {
-        return vehicle;
+    public Future<DeliveryVehicle> getDeliveryVehicleFuture(){
+        return deliveryVehicleFuture;
     }
 }

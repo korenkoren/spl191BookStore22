@@ -155,6 +155,7 @@ public abstract class MicroService implements Runnable {
      */
     @Override @SuppressWarnings("unchecked")
     public final void run() {
+        System.out.println(Thread.currentThread().getName() + " - " + this.name);
         Message message;
         MessageBus m=MessageBusImpl.getInstance();
         m.register(this);
